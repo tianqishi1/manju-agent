@@ -9,6 +9,7 @@ from typing import Annotated, Any, TypedDict
 
 class DramaState(TypedDict, total=False):
     drama_id: str
+    trace_id: str
     title: str
     topic: str
 

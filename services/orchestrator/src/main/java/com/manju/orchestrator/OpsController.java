@@ -67,6 +67,7 @@ public class OpsController {
             String lastStage = evs.isEmpty() ? "" : evs.get(evs.size() - 1).getStage();
             Map<String, Object> m = new HashMap<>();
             m.put("id", d.getId());
+            m.put("traceId", d.getTraceId());
             m.put("title", d.getTitle());
             m.put("status", d.getStatus().name());
             m.put("reviewKind", d.getReviewKind());

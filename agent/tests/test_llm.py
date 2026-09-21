@@ -39,7 +39,8 @@ class FakeOpenAI(BaseHTTPRequestHandler):
                      "dialogues": [{"character": "老王", "emotion": "低沉", "text": "路还长着呢。"}]},
                 ]},
                 ensure_ascii=False)
-        resp = json.dumps({"choices": [{"message": {"content": content}}]}).encode()
+        resp = json.dumps({"choices": [{"message": {"content": content}}],
+                           "usage": {"prompt_tokens": 100, "completion_tokens": 50}}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(resp)))
@@ -79,6 +80,20 @@ async def main():
     # ---------- 路径3：JSON 提取容错（围栏/尾逗号/前后闲话） ----------
     assert llm._extract_json('前言```json\n{"a": [1,2,],}\n```后记') == {"a": [1, 2]}
     print("[3] JSON 提取容错 OK：围栏+尾逗号+前后闲话")
+
+    # ---------- 路径4：token 用量统计与预算限流 ----------
+    s = llm.stats()
+    assert s["calls"] == 2 and s["prompt_tokens"] == 200 and s["completion_tokens"] == 100, s
+    assert s["total_tokens"] == 300 and s["budget"] == 0 and not s["budget_exceeded"]
+    print("[4] token 用量统计 OK：2 次调用 / 300 tokens")
+
+    # 设小预算触发限流 → chat_json 抛错 → adapters 回落 Mock
+    os.environ["LLM_TOKEN_BUDGET"] = "300"
+    script = await adapters.llm_generate_script("t3", "预算测试", "测试")  # 已超预算 → 回落 mock
+    assert script.get("totalScenes") == 3  # mock 3 场
+    assert llm.stats()["budget_exceeded"]
+    del os.environ["LLM_TOKEN_BUDGET"]
+    print("[5] 预算限流 OK：超预算自动回落 Mock，服务不中断")
 
     srv.shutdown()
     print("\nLLM ADAPTER TESTS PASSED")

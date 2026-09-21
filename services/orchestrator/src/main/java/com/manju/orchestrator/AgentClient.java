@@ -28,9 +28,10 @@ public class AgentClient {
     private String agentUrl;
 
     @Async
-    public void runDramaAsync(Long dramaId, String title, String topic) {
+    public void runDramaAsync(Long dramaId, String title, String topic, String traceId) {
         post(agentUrl + "/v1/dramas/" + dramaId + "/run", java.util.Map.of(
-                "dramaId", String.valueOf(dramaId), "title", title, "topic", topic));
+                "dramaId", String.valueOf(dramaId), "title", title, "topic", topic,
+                "traceId", traceId == null ? "" : traceId));
     }
 
     @Async
