@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>漫剧 Agent 平台 MVP</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #0f1117; color: #e6e8ee; padding: 24px; }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #8a90a0; font-size: 13px; margin-bottom: 24px; }
+  .sub a { color: #7ea0f5; text-decoration: none; }
+  .card { background: #171a23; border: 1px solid #262b38; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  select, input, button { font-size: 14px; padding: 8px 12px; border-radius: 6px; border: 1px solid #323848; background: #0f1117; color: #e6e8ee; }
+  button { cursor: pointer; background: #4c6ef5; border: none; color: #fff; font-weight: 600; }
+  button.danger { background: #b8455a; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  .status { font-weight: 700; padding: 3px 10px; border-radius: 999px; font-size: 12px; }
+  .s-DRAFT { background: #3a3f4f; } .s-RUNNING { background: #2b5fad; }
+  .s-AWAIT_REVIEW { background: #a37b1f; } .s-COMPLETED { background: #2f7d4f; }
+  .s-FAILED, .s-REJECTED { background: #8c3b4d; }
+  .timeline { list-style: none; margin-top: 12px; }
+  .timeline li { padding: 7px 0 7px 14px; border-left: 2px solid #323848; font-size: 13px; color: #b6bccb; position: relative; }
+  .timeline li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #4c6ef5; position: absolute; left: -5px; top: 11px; }
+  .timeline li.warn::before { background: #d09a3a; }
+  .timeline li b { color: #e6e8ee; }
+  pre { background: #0c0e13; border: 1px solid #262b38; border-radius: 8px; padding: 14px; font-size: 12px; overflow: auto; max-height: 320px; margin-top: 10px; color: #9fd0a5; }
+  .label { font-size: 12px; color: #8a90a0; margin: 14px 0 6px; }
+  video { width: 100%; max-width: 320px; border-radius: 10px; background: #000; display: block; margin-top: 10px; }
+  .hint { color: #8a90a0; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>漫剧 Agent 平台 <span class="hint">MVP</span></h1>
+  <div class="sub">选题 → 素材 → 剧本 → <b>剧本人审</b> → 分镜 → <b>画风审核</b> → 并行生成(视频/配音) → 合成 · <a href="/ops.html">运维看板 →</a></div>
+
+  <div class="card">
+    <div class="row">
+      <select id="topicSel"></select>
+      <input id="titleInput" placeholder="剧集标题（可选，默认取选题）" style="flex:1;min-width:200px">
+      <button onclick="createDrama()">生成漫剧</button>
+      <span id="createMsg" class="hint"></span>
+    </div>
+  </div>
+
+  <div class="card" id="dramaCard" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <b id="dramaTitle"></b>
+        <span id="dramaStatus" class="status"></span>
+        <span class="hint" id="dramaId"></span>
+      </div>
+    </div>
+
+    <!-- 剧本人审 -->
+    <div id="scriptReviewBox" style="display:none">
+      <div class="label">剧本人审（interrupt 暂停中）</div>
+      <pre id="scriptPre"></pre>
+      <div class="row" style="margin-top:10px">
+        <button onclick="approve(true)">批准并继续</button>
+        <button class="danger" onclick="approve(false)">拒绝（终止）</button>
+      </div>
+    </div>
+
+    <!-- 画风审核 -->
+    <div id="styleReviewBox" style="display:none">
+      <div class="label">首镜头画风审核（interrupt 暂停中）——画风/角色形象通过后才会批量生成全部镜头</div>
+      <video id="previewVideo" controls></video>
+      <div class="row" style="margin-top:10px">
+        <button onclick="approve(true)">画风通过，批量生成</button>
+        <button class="danger" onclick="approve(false)">不通过（终止）</button>
+      </div>
+    </div>
+
+    <div class="label">事件时间线</div>
+    <ul class="timeline" id="timeline"></ul>
+
+    <div id="outputBox" style="display:none">
+      <div class="label">成片输出</div>
+      <video id="outputVideo" controls></video>
+      <div class="hint" id="outputUrl" style="margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let dramaId = null, timer = null;
+
+async function loadTopics() {
+  const r = await fetch('/api/topics');
+  const topics = await r.json();
+  const sel = document.getElementById('topicSel');
+  topics.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.title; o.textContent = `[${t.genre}] ${t.title}`;
+    sel.appendChild(o);
+  });
+}
+
+async function createDrama() {
+  const topic = document.getElementById('topicSel').value;
+  const title = document.getElementById('titleInput').value.trim() || topic;
+  const r = await fetch('/api/dramas', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ title, topic })
+  });
+  const d = await r.json();
+  document.getElementById('createMsg').textContent = '已提交，ID=' + d.id;
+  dramaId = d.id;
+  document.getElementById('dramaCard').style.display = '';
+  clearInterval(timer);
+  timer = setInterval(poll, 1000);
+  poll();
+}
+
+async function poll() {
+  if (!dramaId) return;
+  const r = await fetch('/api/dramas/' + dramaId);
+  const d = await r.json();
+  document.getElementById('dramaTitle').textContent = d.title;
+  document.getElementById('dramaId').textContent = '#' + d.id;
+  const st = document.getElementById('dramaStatus');
+  st.textContent = d.status; st.className = 'status s-' + d.status;
+
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = (d.events || []).map(e =>
+    `<li class="${e.stage.includes('retry') || e.stage.includes('stuck') ? 'warn' : ''}"><b>${e.stage}</b> — ${e.message || ''} <span class="hint">${e.createdAt || ''}</span></li>`).join('');
+
+  const isReview = d.status === 'AWAIT_REVIEW';
+  const isStyle = isReview && d.reviewKind === 'STYLE';
+  document.getElementById('scriptReviewBox').style.display = (isReview && !isStyle) ? '' : 'none';
+  document.getElementById('styleReviewBox').style.display = isStyle ? '' : 'none';
+  if (isStyle && d.previewUrl) document.getElementById('previewVideo').src = d.previewUrl;
+  if (!isReview && d.previewUrl) document.getElementById('styleReviewBox').style.display = 'none';
+  if (isReview && !isStyle) document.getElementById('scriptPre').textContent = JSON.stringify(d.script, null, 2);
+
+  const hasOutput = d.outputUrl && d.outputUrl.endsWith('.mp4');
+  document.getElementById('outputBox').style.display = hasOutput ? '' : 'none';
+  if (hasOutput) {
+    document.getElementById('outputVideo').src = d.outputUrl;
+    document.getElementById('outputUrl').textContent = d.outputUrl;
+  }
+  const done = d.status === 'COMPLETED' || d.status === 'FAILED' || d.status === 'REJECTED';
+  if (done && !isReview) { clearInterval(timer); timer = null; }
+}
+
+async function approve(ok) {
+  const r = await fetch(`/api/dramas/${dramaId}/approve`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ approved: ok, _kind: document.getElementById('styleReviewBox').style.display !== 'none' ? 'STYLE' : 'SCRIPT' })
+  });
+  if (!r.ok) alert('审批失败: ' + await r.text());
+  else { clearInterval(timer); timer = setInterval(poll, 1000); poll(); }
+}
+
+loadTopics();
+</script>
+</body>
+</html>

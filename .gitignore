@@ -1,0 +1,34 @@
+# ===== Java =====
+services/**/target/
+*.class
+*.jar
+!services/**/Dockerfile
+
+# ===== Python =====
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# ===== 运行时产物 / 本地数据（不入库）=====
+agent/data/
+agent/media/
+*.db
+*.db-journal
+*.mv.db
+*.trace.db
+services/**/data/
+
+# ===== 敏感信息（绝不入库）=====
+.env
+.env.*
+*.key
+*.pem
+credentials*.json
+
+# ===== IDE / 系统 =====
+.idea/
+*.iml
+.vscode/
+Thumbs.db
+.DS_Store

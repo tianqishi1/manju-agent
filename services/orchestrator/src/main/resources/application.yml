@@ -1,0 +1,21 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: manju-orchestrator
+  datasource:
+    # 文件型 H2：重启保留状态，配合断点续作演示（生产版换 MySQL + ShardingSphere 分库分表）
+    url: jdbc:h2:file:./data/orchestrator;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+agent:
+  url: ${AGENT_URL:http://localhost:8000}
+
+ops:
+  stuck-after-seconds: ${STUCK_AFTER_SECONDS:300}

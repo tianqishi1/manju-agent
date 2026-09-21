@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>运维看板 · 漫剧 Agent 平台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; background: #0f1117; color: #e6e8ee; padding: 24px; }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 20px; margin-bottom: 4px; }
+  .sub { color: #8a90a0; font-size: 13px; margin-bottom: 20px; }
+  .sub a { color: #7ea0f5; text-decoration: none; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: #171a23; border: 1px solid #262b38; border-radius: 10px; padding: 14px 16px; }
+  .kpi .v { font-size: 26px; font-weight: 700; }
+  .kpi .k { font-size: 12px; color: #8a90a0; margin-top: 2px; }
+  .kpi.warn .v { color: #d09a3a; } .kpi.bad .v { color: #c96a7d; } .kpi.good .v { color: #7ee0a3; }
+  .card { background: #171a23; border: 1px solid #262b38; border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 14px; color: #b6bccb; margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: #8a90a0; font-weight: 500; padding: 6px 8px; border-bottom: 1px solid #262b38; }
+  td { padding: 7px 8px; border-bottom: 1px solid #1d2230; }
+  .status { font-weight: 700; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .s-RUNNING { background: #2b5fad; } .s-AWAIT_REVIEW { background: #a37b1f; }
+  .s-COMPLETED { background: #2f7d4f; } .s-FAILED, .s-REJECTED { background: #8c3b4d; } .s-DRAFT { background: #3a3f4f; }
+  .empty { color: #5c6274; font-size: 13px; padding: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>运维看板</h1>
+  <div class="sub"><a href="/">&larr; 返回生成页</a> · 3s 自动刷新 · 卡死阈值 <span id="threshold"></span>s</div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>疑似卡死（RUNNING 且长时间无进度）</h2>
+    <div id="stuckBox"></div>
+  </div>
+
+  <div class="card">
+    <h2>失败子任务</h2>
+    <div id="failedBox"></div>
+  </div>
+
+  <div class="card">
+    <h2>最近剧集</h2>
+    <table>
+      <thead><tr><th>ID</th><th>标题</th><th>状态</th><th>待审类型</th><th>最新阶段</th><th>更新时间</th></tr></thead>
+      <tbody id="recentBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+async function refresh() {
+  const r = await fetch('/api/ops/board');
+  const d = await r.json();
+  document.getElementById('threshold').textContent = d.stuckThresholdSeconds;
+
+  const sc = d.statusCounts;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${d.total}</div><div class="k">总剧集</div></div>
+    <div class="kpi good"><div class="v">${d.successRate}</div><div class="k">成功率（完成/总数）</div></div>
+    <div class="kpi"><div class="v">${sc.RUNNING || 0}</div><div class="k">生成中</div></div>
+    <div class="kpi"><div class="v">${sc.AWAIT_REVIEW || 0}</div><div class="k">待人审</div></div>
+    <div class="kpi bad"><div class="v">${(sc.FAILED || 0) + (sc.REJECTED || 0)}</div><div class="k">失败/拒绝</div></div>
+    <div class="kpi warn"><div class="v">${d.stuck.length}</div><div class="k">疑似卡死</div></div>`;
+
+  document.getElementById('stuckBox').innerHTML = d.stuck.length === 0 ? '<div class="empty">无</div>' :
+    `<table><thead><tr><th>ID</th><th>标题</th><th>无进度(秒)</th><th>最后更新</th></tr></thead><tbody>` +
+    d.stuck.map(s => `<tr><td>#${s.id}</td><td>${s.title}</td><td style="color:#d09a3a">${s.stuckSeconds}</td><td>${s.updatedAt}</td></tr>`).join('') + '</tbody></table>';
+
+  document.getElementById('failedBox').innerHTML = d.failedSubtasks.length === 0 ? '<div class="empty">无</div>' :
+    `<table><thead><tr><th>剧集</th><th>类型</th><th>引用</th></tr></thead><tbody>` +
+    d.failedSubtasks.map(f => `<tr><td>#${f.dramaId}</td><td>${f.type}</td><td>${f.refId}</td></tr>`).join('') + '</tbody></table>';
+
+  document.getElementById('recentBody').innerHTML = (d.recent || []).map(r2 =>
+    `<tr><td>#${r2.id}</td><td>${r2.title}</td><td><span class="status s-${r2.status}">${r2.status}</span></td><td>${r2.reviewKind || ''}</td><td>${r2.lastStage}</td><td>${r2.updatedAt}</td></tr>`).join('');
+}
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

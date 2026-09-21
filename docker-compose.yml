@@ -1,0 +1,103 @@
+version: "3.8"
+
+# 国内网络优化：基础镜像走加速源（docker.m.daocloud.io），Maven 走阿里云，pip 走清华
+# 若有可用代理/海外网络，可改环境变量 BASE_REGISTRY=docker.io 后重新 build
+x-mirror-args: &mirror-args
+  BASE_REGISTRY: ${BASE_REGISTRY:-docker.m.daocloud.io}
+
+services:
+  # ---------- Java 微服务（SpringBoot 3 + JDK17） ----------
+  gateway:
+    build:
+      context: ./services
+      dockerfile: gateway/Dockerfile
+      args: *mirror-args
+    ports: ["8080:8080"]
+    environment:
+      ORCHESTRATOR_URL: http://orchestrator:8081
+      TOPIC_SVC_URL: http://topic-svc:8082
+      AGENT_URL: http://agent:8000
+    depends_on: [orchestrator, topic-svc, agent]
+
+  orchestrator:
+    build:
+      context: ./services
+      dockerfile: orchestrator/Dockerfile
+      args: *mirror-args
+    ports: ["8081:8081"]
+    environment:
+      AGENT_URL: http://agent:8000
+      STUCK_AFTER_SECONDS: ${STUCK_AFTER_SECONDS:-300}
+    volumes:
+      - orchestrator-data:/app/data   # H2 文件库：重启保留剧集状态
+    depends_on: [agent]
+
+  topic-svc:
+    build:
+      context: ./services
+      dockerfile: topic-svc/Dockerfile
+      args: *mirror-args
+    ports: ["8082:8082"]
+
+  script-svc:
+    build:
+      context: ./services
+      dockerfile: script-svc/Dockerfile
+      args: *mirror-args
+    ports: ["8083:8083"]
+
+  asset-svc:
+    build:
+      context: ./services
+      dockerfile: asset-svc/Dockerfile
+      args: *mirror-args
+    ports: ["8084:8084"]
+
+  storyboard-svc:
+    build:
+      context: ./services
+      dockerfile: storyboard-svc/Dockerfile
+      args: *mirror-args
+    ports: ["8085:8085"]
+
+  voice-svc:
+    build:
+      context: ./services
+      dockerfile: voice-svc/Dockerfile
+      args: *mirror-args
+    ports: ["8086:8086"]
+
+  compose-svc:
+    build:
+      context: ./services
+      dockerfile: compose-svc/Dockerfile
+      args: *mirror-args
+    ports: ["8087:8087"]
+
+  # ---------- Python AI 编排层（FastAPI + LangGraph） ----------
+  agent:
+    build:
+      context: ./agent
+      args: *mirror-args
+    ports: ["8000:8000"]
+    environment:
+      ORCHESTRATOR_URL: http://orchestrator:8081
+      ASSET_SVC_URL: http://asset-svc:8084
+      SCRIPT_SVC_URL: http://script-svc:8083
+      STORYBOARD_SVC_URL: http://storyboard-svc:8085
+      VOICE_SVC_URL: http://voice-svc:8086
+      COMPOSE_SVC_URL: http://compose-svc:8087
+      MEDIA_DIR: /app/media
+      # 真实 LLM（OpenAI 兼容）：配置后剧本/分镜走真实生成，未配置回落 Mock
+      # 密钥建议用 .env 文件（已被 .gitignore 排除）或部署平台密钥管理
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+    volumes:
+      - agent-checkpoints:/app/data   # Sqlite checkpoint：断点续作
+      - media-data:/app/media         # 产物 mp4（gateway 经 agent 静态服务代理）
+
+volumes:
+  orchestrator-data:
+  agent-checkpoints:
+  media-data:

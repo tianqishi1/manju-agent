@@ -1,0 +1,25 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: manju-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: orchestrator
+          uri: ${ORCHESTRATOR_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/dramas/**,/api/ops/**
+        - id: topics
+          uri: ${TOPIC_SVC_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/topics/**
+        - id: agent
+          uri: ${AGENT_URL:http://localhost:8000}
+          predicates:
+            - Path=/v1/**,/media/**
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
