@@ -13,6 +13,7 @@ public class DramaEvent {
     private Long id;
 
     private Long dramaId;
+    private String traceId;
     private String stage;
     @Lob
     @Column(length = 10000)
@@ -22,6 +23,8 @@ public class DramaEvent {
     public Long getId() { return id; }
     public Long getDramaId() { return dramaId; }
     public void setDramaId(Long dramaId) { this.dramaId = dramaId; }
+    public String getTraceId() { return traceId; }
+    public void setTraceId(String traceId) { this.traceId = traceId; }
     public String getStage() { return stage; }
     public void setStage(String stage) { this.stage = stage; }
     public String getMessage() { return message; }

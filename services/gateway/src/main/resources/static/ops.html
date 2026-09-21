@@ -47,7 +47,7 @@
   <div class="card">
     <h2>最近剧集</h2>
     <table>
-      <thead><tr><th>ID</th><th>标题</th><th>状态</th><th>待审类型</th><th>最新阶段</th><th>更新时间</th></tr></thead>
+      <thead><tr><th>ID</th><th>traceId</th><th>标题</th><th>状态</th><th>待审类型</th><th>最新阶段</th><th>更新时间</th></tr></thead>
       <tbody id="recentBody"></tbody>
     </table>
   </div>
@@ -77,7 +77,7 @@ async function refresh() {
     d.failedSubtasks.map(f => `<tr><td>#${f.dramaId}</td><td>${f.type}</td><td>${f.refId}</td></tr>`).join('') + '</tbody></table>';
 
   document.getElementById('recentBody').innerHTML = (d.recent || []).map(r2 =>
-    `<tr><td>#${r2.id}</td><td>${r2.title}</td><td><span class="status s-${r2.status}">${r2.status}</span></td><td>${r2.reviewKind || ''}</td><td>${r2.lastStage}</td><td>${r2.updatedAt}</td></tr>`).join('');
+    `<tr><td>#${r2.id}</td><td style="font-family:monospace;color:#7ea0f5">${r2.traceId || '-'}</td><td>${r2.title}</td><td><span class="status s-${r2.status}">${r2.status}</span></td><td>${r2.reviewKind || ''}</td><td>${r2.lastStage}</td><td>${r2.updatedAt}</td></tr>`).join('');
 }
 refresh();
 setInterval(refresh, 3000);

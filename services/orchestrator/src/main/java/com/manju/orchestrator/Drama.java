@@ -14,6 +14,9 @@ public class Drama {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 全链路追踪 ID：创建时生成，贯穿 agent 日志、事件流水、子任务，排查入口 */
+    private String traceId;
+
     private String title;
     private String topic;
 
@@ -34,6 +37,8 @@ public class Drama {
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     public Long getId() { return id; }
+    public String getTraceId() { return traceId; }
+    public void setTraceId(String traceId) { this.traceId = traceId; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getTopic() { return topic; }

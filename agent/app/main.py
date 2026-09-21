@@ -50,6 +50,7 @@ class RunRequest(BaseModel):
     dramaId: str
     title: str = ""
     topic: str = ""
+    traceId: str = ""
 
 
 class ApproveRequest(BaseModel):
@@ -57,15 +58,16 @@ class ApproveRequest(BaseModel):
     editedScript: str | None = None
 
 
-async def _run_drama(drama_id: str, title: str, topic: str) -> None:
+async def _run_drama(drama_id: str, title: str, topic: str, trace_id: str) -> None:
     """后台执行 DAG；interrupt（人审暂停）与正常结束都视为一次完整的 invoke 返回。"""
     cfg = graph.thread_config(drama_id)
     try:
+        logger.info("[%s] drama %s run start (title=%s)", trace_id or "-", drama_id, title)
         await app.state.graph.ainvoke(
-            {"drama_id": drama_id, "title": title, "topic": topic}, cfg)
-        logger.info("drama %s invoke returned (paused or finished)", drama_id)
+            {"drama_id": drama_id, "title": title, "topic": topic, "trace_id": trace_id}, cfg)
+        logger.info("[%s] drama %s invoke returned (paused or finished)", trace_id or "-", drama_id)
     except Exception as e:  # noqa: BLE001
-        logger.error("drama %s failed: %s", drama_id, e)
+        logger.error("[%s] drama %s failed: %s", trace_id or "-", drama_id, e)
         await java_client.report_event(drama_id, "failed", f"编排层异常：{e}")
 
 
@@ -76,8 +78,8 @@ async def run(drama_id: str, req: RunRequest):
     snap = await app.state.graph.aget_state(cfg)
     if snap is not None and snap.next:
         raise HTTPException(status_code=409, detail="drama already running or paused, use /approve to resume")
-    asyncio.create_task(_run_drama(drama_id, req.title, req.topic))
-    return {"ok": True, "dramaId": drama_id, "status": "SUBMITTED"}
+    asyncio.create_task(_run_drama(drama_id, req.title, req.topic, req.traceId))
+    return {"ok": True, "dramaId": drama_id, "traceId": req.traceId, "status": "SUBMITTED"}
 
 
 @app.post("/v1/dramas/{drama_id}/approve")
@@ -143,5 +145,13 @@ def _derive_stage(values: dict, next_nodes) -> str:
 @app.get("/health")
 async def health():
     from . import llm as llm_mod
-    return {"ok": True, "service": "manju-agent", "dag": "built", "version": "1.2.0",
-            "llm": "real" if llm_mod.is_configured() else "mock-fallback"}
+    return {"ok": True, "service": "manju-agent", "dag": "built", "version": "1.3.0",
+            "llm": "real" if llm_mod.is_configured() else "mock-fallback",
+            "llmStats": llm_mod.stats()}
+
+
+@app.get("/v1/llm/stats")
+async def llm_stats():
+    """token 用量与预算状态（运维监控用；生产版入 Prometheus）。"""
+    from . import llm as llm_mod
+    return llm_mod.stats()

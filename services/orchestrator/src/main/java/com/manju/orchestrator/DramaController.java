@@ -41,13 +41,14 @@ public class DramaController {
     @Transactional
     public Map<String, Object> create(@RequestBody Map<String, String> req) {
         Drama d = new Drama();
+        d.setTraceId(java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16));
         d.setTitle(req.getOrDefault("title", "未命名漫剧"));
         d.setTopic(req.getOrDefault("topic", ""));
         d.setStatus(Drama.Status.RUNNING);
         d = dramas.save(d);
         addEvent(d.getId(), "drama_created", "剧集已创建，提交编排层执行");
-        agent.runDramaAsync(d.getId(), d.getTitle(), d.getTopic());
-        return Map.of("id", d.getId(), "status", d.getStatus().name());
+        agent.runDramaAsync(d.getId(), d.getTitle(), d.getTopic(), d.getTraceId());
+        return Map.of("id", d.getId(), "traceId", d.getTraceId(), "status", d.getStatus().name());
     }
 
     @GetMapping("/{id}")
@@ -152,6 +153,7 @@ public class DramaController {
     private void addEvent(Long dramaId, String stage, String message) {
         DramaEvent e = new DramaEvent();
         e.setDramaId(dramaId);
+        dramas.findById(dramaId).ifPresent(d -> e.setTraceId(d.getTraceId()));
         e.setStage(stage);
         e.setMessage(message);
         events.save(e);
@@ -175,6 +177,7 @@ public class DramaController {
     private Map<String, Object> toDetail(Drama d) {
         Map<String, Object> m = new HashMap<>();
         m.put("id", d.getId());
+        m.put("traceId", d.getTraceId());
         m.put("title", d.getTitle());
         m.put("topic", d.getTopic());
         m.put("status", d.getStatus().name());
@@ -190,6 +193,7 @@ public class DramaController {
         for (DramaEvent e : events.findByDramaIdOrderByIdAsc(d.getId())) {
             evs.add(Map.of("stage", e.getStage(),
                     "message", e.getMessage() == null ? "" : e.getMessage(),
+                    "traceId", e.getTraceId() == null ? "" : e.getTraceId(),
                     "createdAt", String.valueOf(e.getCreatedAt())));
         }
         m.put("events", evs);
