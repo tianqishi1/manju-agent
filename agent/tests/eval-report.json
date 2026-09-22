@@ -1,0 +1,105 @@
+{
+  "suite": "manju-eval",
+  "time": "2026-09-22 11:55:24",
+  "score": 100.0,
+  "total": 16,
+  "failed": 0,
+  "items": [
+    {
+      "dim": "A链路",
+      "item": "剧本审核暂停",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "画风审核暂停+预览产物",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "端到端完成",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "成片可播放(ftyp)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "子任务齐全(6视频+5配音)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "traceId贯穿",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "事件流水完整",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "拒绝终止不浪费生成",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "A链路",
+      "item": "完结态幂等(重读不变)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "B稳定",
+      "item": "视频源异常仍完成",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "B稳定",
+      "item": "重启后状态恢复",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "dim": "C质量",
+      "item": "JSON结构提取合法率(容错)",
+      "pass": true,
+      "detail": "5/5"
+    },
+    {
+      "dim": "D性能",
+      "item": "并发10剧完成率",
+      "pass": true,
+      "detail": "10/10, 51.6s"
+    },
+    {
+      "dim": "D性能",
+      "item": "单剧端到端时延(Mock)",
+      "pass": true,
+      "detail": "5.9s"
+    },
+    {
+      "dim": "E合规",
+      "item": "敏感文件零泄漏",
+      "pass": true,
+      "detail": "clean"
+    },
+    {
+      "dim": "E合规",
+      "item": "docker-compose 可一键部署",
+      "pass": true,
+      "detail": ""
+    }
+  ]
+}
